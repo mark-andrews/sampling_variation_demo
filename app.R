@@ -5,7 +5,6 @@ library(latex2exp)
 
 theme_set(theme_classic())
 
-NBOX <- 100
 ui <- fluidPage(
   withMathJax(),
 
@@ -17,43 +16,40 @@ ui <- fluidPage(
     sidebarPanel(
       helpText(
         "This is demonstration of the variation of values of a statistic in samples from a population.",
-       br(), 
-       br(),
-      "Imagine we have a box of 100 coins.
-      Some of these 100 coins are gold and the remainder are silver.
+        br(),
+        br(),
+        "Imagine we have a box with a large number of coins, some of which are silver and the remainder are gold.
       Using the slider
-      below we can set the number of these 100 coins that are gold (so the
-      remainder are silver).
-      We can then simulate what would happen if we repeatedly draw samples (with replacement) from this box 
+      below we can set the proportion of coins that are gold.
+      We can then simulate what would happen if we repeatedly draw samples (with replacement) from this box
       and count the number of gold coins in each sample.",
-      br(),
-      "We can use the second slider to set the number of coins in each sample, and we will denote this number by \\(n\\).
+        br(),
+        "We can use the second slider to set the number of coins in each sample, and we will denote this number by \\(n\\).
       Each time we draw a sample, we count the number of gold coins, which we will denote by \\(m\\).
       We can use the last slider to set the number of times we repeat
-      this process of sampling \\(n\\) coins from the box and counting the number of gold coins (\\(m\\)).
-      We will use \\(N\\) to denote the number of repetitions.",
-      br(),
-      br(),
-      "The plots to the right show the following:",
-      br(),
-      "A) The value of \\(m\\) in each of the \\(N\\) repetitions",
-      br(),
-      "B) The distribution of the values of \\(m\\) over of the \\(N\\) repetitions. 
+      this sampling procedure, which we will denote by \\(N\\).",
+        br(),
+        br(),
+        "The plots to the right show the following:",
+        br(),
+        "A) The value of \\(m\\) in each of the \\(N\\) repetitions",
+        br(),
+        "B) The distribution of the values of \\(m\\) over of the \\(N\\) repetitions.
       This is the known as the ",
-      em("sampling distribution,"),
-      " albeit one calculated from a simulation.",
-      br(),
-      "C) The distribution of the values of \\(m\\) as \\(N \\to \\infty \\). We use statistical theory to calculate this distribution.
+        em("sampling distribution,"),
+        " albeit one calculated from a simulation.",
+        br(),
+        "C) The distribution of the values of \\(m\\) as \\(N \\to \\infty \\). We use statistical theory to calculate this distribution.
       This is true, or theoretical, sampling distribution.",
-      br(),
-      br()
+        br(),
+        br()
       ),
       sliderInput("theta",
-        "Number of gold coins in the box of 100 coins:",
-        min = 10,
-        max = 90,
-        step = 5,
-        value = 50
+        "Proportion of gold coins in the box:",
+        min = 0.10,
+        max = 0.90,
+        step = 0.05,
+        value = 0.50
       ),
       sliderInput("n",
         "Number of coins we sample (with replacement) from box (\\(n\\)):",
@@ -84,7 +80,7 @@ server <- function(input, output) {
   dataset <- reactive({
     tibble(
       repetition = seq(input$N),
-      m = rbinom(n = input$N, size = input$n, prob = input$theta / NBOX)
+      m = rbinom(n = input$N, size = input$n, prob = input$theta)
     )
   })
 
@@ -93,21 +89,36 @@ server <- function(input, output) {
       ggplot(aes(x = repetition, y = m)) +
       geom_line(colour = "grey50", alpha = 0.25, linetype = "dashed") +
       geom_point() +
-      theme_classic() +
-      ggtitle(TeX('Traceplot of value of $m$ on each of the $N$ repetitions'))
-    
-    p2 <- dataset() %>% 
+      scale_y_continuous(breaks = seq(0, input$n)) +
+      ggtitle(TeX("Traceplot of value of $m$ on each of the $N$ repetitions"))
+
+    p2 <- dataset() %>%
       ggplot(aes(x = m)) +
-      scale_x_continuous(breaks = seq(0, input$n), limits = c(0, input$n)) +
+      scale_x_continuous(
+        breaks = seq(0,
+          input$n,
+          by = (function(n) ifelse(n > 20, 10, ifelse(n > 10, 5, 1)))(input$n)
+        ),
+        limits = c(0, input$n)
+      ) +
       geom_bar() +
-      ggtitle(TeX('Distribution of values of $m$ in the $N$ repetitions.'))
-    
-    p3 <- tibble(x = seq(0, input$n),
-           p = dbinom(x, size = input$n, prob = input$theta / NBOX)
-    ) %>% ggplot(aes(x = x, y = p)) + geom_col() +
-    ggtitle(TeX('Distribution of values of $m$ when $N \\to\\ \\infty$.'))  
-    
-    p1 / (p2 + p3) + plot_annotation(tag_levels = 'A')
+      ggtitle(TeX("Distribution of values of $m$ in the $N$ repetitions."))
+
+    p3 <- tibble(
+      x = seq(0, input$n),
+      p = dbinom(x, size = input$n, prob = input$theta)
+    ) %>% ggplot(aes(x = x, y = p)) +
+      geom_col() +
+      scale_x_continuous(
+        breaks = seq(0,
+                     input$n,
+                     by = (function(n) ifelse(n > 20, 10, ifelse(n > 10, 5, 1)))(input$n)
+        ),
+        limits = c(0, input$n)
+      ) +
+      ggtitle(TeX("Distribution of values of $m$ when $N \\to\\ \\infty$."))
+
+    p1 / (p2 + p3) + plot_annotation(tag_levels = "A")
   })
 }
 
